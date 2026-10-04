@@ -1,10 +1,22 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../lib/auth'
-import { getActiveList, getFavorites, getHistory, getItems, getMembers, must, rpcCount } from '../lib/data'
+import {
+  byCategoryName,
+  defaultCategoryId,
+  getActiveList,
+  getCategories,
+  getCategoryMemory,
+  getFavorites,
+  getHistory,
+  getItems,
+  getMembers,
+  must,
+  rpcCount,
+} from '../lib/data'
 import { normalize, useLiveQuery } from '../lib/live'
 import { errorMessage, supabase } from '../lib/supabase'
 import type { GroceryItem, GroceryList } from '../lib/types'
-import ItemEditor from '../components/ItemEditor'
+import ItemEditor, { CategorySelect } from '../components/ItemEditor'
 import { toast } from '../components/Toast'
 
 type ListState = { list: GroceryList | null; items: GroceryItem[] }
@@ -26,9 +38,14 @@ export default function ListPage() {
   const { data: favorites } = useLiveQuery('list-favs', hid, ['favorites'], getFavorites, [])
   const { data: history } = useLiveQuery('list-history', hid, ['list_history'], getHistory, [])
   const { data: members } = useLiveQuery('list-members', hid, ['users'], getMembers, [])
+  const { data: categories } = useLiveQuery('list-categories', hid, ['categories'], getCategories, [])
+  const { data: categoryMemory } = useLiveQuery('list-category-memory', hid, ['grocery_items'], getCategoryMemory, new Map<string, string>())
 
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
+  // Category for the next item: follows what this item was filed under last time,
+  // until the user picks one themselves.
+  const [pickedCategory, setPickedCategory] = useState<string | null>(null)
   const [editing, setEditing] = useState<GroceryItem | null>(null)
   const [busy, setBusy] = useState(false)
   const nameInput = useRef<HTMLInputElement>(null)
@@ -42,7 +59,24 @@ export default function ListPage() {
     return [...names.values()].sort((a, b) => a.localeCompare(b))
   }, [favorites, history])
 
+  const fallbackCategory = defaultCategoryId(categories)
+  const rememberedCategory = categoryMemory.get(normalize(name))
+  const newItemCategory =
+    pickedCategory ?? (rememberedCategory && categories.some((c) => c.id === rememberedCategory) ? rememberedCategory : fallbackCategory)
+
   const toBuy = data.items.filter((i) => !i.checked)
+  const groups = useMemo(() => {
+    const byId = new Map(categories.map((c) => [c.id, c]))
+    const map = new Map<string, { name: string; items: GroceryItem[] }>()
+    for (const item of toBuy) {
+      // Items whose category was removed show under Other.
+      const groupName = (item.category_id && byId.get(item.category_id)?.name) || 'Other'
+      const key = groupName.toLowerCase()
+      if (!map.has(key)) map.set(key, { name: groupName, items: [] })
+      map.get(key)!.items.push(item)
+    }
+    return [...map.values()].sort(byCategoryName)
+  }, [toBuy, categories])
   const inCart = data.items.filter((i) => i.checked)
 
   function patchItem(id: string, patch: Partial<GroceryItem>) {
@@ -80,10 +114,12 @@ export default function ListPage() {
       quantity: quantity.trim() || fav?.quantity || null,
       notes: fav?.notes ?? null,
       category: fav?.category ?? null,
+      category_id: newItemCategory || null,
       added_by: member?.id ?? null,
     }
     setName('')
     setQuantity('')
+    setPickedCategory(null)
     nameInput.current?.focus()
     await run(async () => {
       const inserted = must(await supabase.from('grocery_items').insert(row).select().single()) as GroceryItem
@@ -185,9 +221,12 @@ export default function ListPage() {
           onChange={(e) => setName(e.target.value)}
         />
         <input className="qty" placeholder="Qty" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-        <button className="primary" disabled={!name.trim()}>
-          Add
-        </button>
+        <div className="add-bar-row">
+          <CategorySelect className="grow" categories={categories} value={newItemCategory} onChange={setPickedCategory} />
+          <button className="primary" disabled={!name.trim()}>
+            Add
+          </button>
+        </div>
         <datalist id="item-suggestions">
           {suggestions.map((s) => (
             <option key={s} value={s} />
@@ -207,19 +246,24 @@ export default function ListPage() {
         </div>
       )}
 
-      <ul className="items">
-        {toBuy.map((item) => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            by={item.added_by ? memberName.get(item.added_by) : undefined}
-            isFavorite={favoriteNames.has(normalize(item.name))}
-            onToggle={() => toggle(item)}
-            onEdit={() => setEditing(item)}
-            onFavorite={() => toggleFavorite(item)}
-          />
-        ))}
-      </ul>
+      {groups.map((group) => (
+        <section key={group.name} className="category-group">
+          <h2 className="category-head">{group.name}</h2>
+          <ul className="items">
+            {group.items.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                by={item.added_by ? memberName.get(item.added_by) : undefined}
+                isFavorite={favoriteNames.has(normalize(item.name))}
+                onToggle={() => toggle(item)}
+                onEdit={() => setEditing(item)}
+                onFavorite={() => toggleFavorite(item)}
+              />
+            ))}
+          </ul>
+        </section>
+      ))}
 
       {inCart.length > 0 && (
         <>
@@ -257,11 +301,17 @@ export default function ListPage() {
       {editing && (
         <ItemEditor
           title="Edit item"
-          initial={{ name: editing.name, quantity: editing.quantity ?? '', notes: editing.notes ?? '' }}
+          initial={{
+            name: editing.name,
+            quantity: editing.quantity ?? '',
+            notes: editing.notes ?? '',
+            categoryId: editing.category_id ?? defaultCategoryId(categories.filter((c) => c.name === 'Other')),
+          }}
+          categories={categories}
           onClose={() => setEditing(null)}
           onDelete={() => remove(editing)}
           onSave={async (f) => {
-            const patch = { name: f.name, quantity: f.quantity || null, notes: f.notes || null }
+            const patch = { name: f.name, quantity: f.quantity || null, notes: f.notes || null, category_id: f.categoryId || null }
             patchItem(editing.id, patch)
             await run(async () => {
               must(await supabase.from('grocery_items').update(patch).eq('id', editing.id).select())

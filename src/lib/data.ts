@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Favorite, GroceryItem, GroceryList, ListHistory, Member, Recipe, RecipeIngredient } from './types'
+import type { Category, Favorite, GroceryItem, GroceryList, ListHistory, Member, Recipe, RecipeIngredient } from './types'
 
 function must<T>(res: { data: T | null; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message)
@@ -36,6 +36,39 @@ export async function getHistory(): Promise<ListHistory[]> {
 
 export async function getMembers(): Promise<Member[]> {
   return must(await supabase.from('users').select('*').order('created_at'))
+}
+
+export async function getCategories(): Promise<Category[]> {
+  const rows: Category[] = must(await supabase.from('categories').select('*'))
+  return rows.sort(byCategoryName)
+}
+
+/** Alphabetical, case-insensitive: the order categories appear everywhere. */
+export function byCategoryName(a: { name: string }, b: { name: string }) {
+  return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+}
+
+/** Most recent category used for each item name, so "Milk" defaults to Dairy next time. */
+export async function getCategoryMemory(): Promise<Map<string, string>> {
+  const rows: { name: string; category_id: string }[] = must(
+    await supabase
+      .from('grocery_items')
+      .select('name, category_id')
+      .not('category_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1000),
+  )
+  const memory = new Map<string, string>()
+  for (const r of rows) {
+    const key = r.name.trim().toLowerCase()
+    if (!memory.has(key)) memory.set(key, r.category_id)
+  }
+  return memory
+}
+
+/** Category a new item starts in: Produce when present, otherwise the first one. */
+export function defaultCategoryId(categories: Category[]): string {
+  return (categories.find((c) => c.name === 'Produce' && !c.is_custom) ?? categories[0])?.id ?? ''
 }
 
 export async function rpcCount(fn: string, args?: Record<string, unknown>): Promise<number> {

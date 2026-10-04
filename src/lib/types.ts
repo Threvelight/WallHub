@@ -30,6 +30,7 @@ export type GroceryItem = {
   quantity: string | null
   notes: string | null
   category: string | null
+  category_id: string | null
   checked: boolean
   checked_at: string | null
   checked_by: string | null
@@ -84,5 +85,14 @@ export type ListHistory = {
   name: string
   items: HistoryItem[]
   item_count: number
+  created_at: string
+}
+
+export type Category = {
+  id: string
+  household_id: string
+  name: string
+  is_custom: boolean
+  sort_order: number
   created_at: string
 }

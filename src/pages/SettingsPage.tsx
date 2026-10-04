@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { getHistory, getMembers, must, rpcCount } from '../lib/data'
 import { useLiveQuery } from '../lib/live'
@@ -66,6 +67,13 @@ export default function SettingsPage() {
           </div>
         ) : (
           <p>{household.name}</p>
+        )}
+
+        {isOwner && (
+          <Link to="/settings/categories" className="settings-link">
+            <span>Manage categories</span>
+            <span className="muted">›</span>
+          </Link>
         )}
 
         <h3>Invite family</h3>

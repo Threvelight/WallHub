@@ -8,6 +8,7 @@ import RecipesPage from './pages/RecipesPage'
 import RecipeEditor from './pages/RecipeEditor'
 import FavoritesPage from './pages/FavoritesPage'
 import SettingsPage from './pages/SettingsPage'
+import CategoriesPage from './pages/CategoriesPage'
 import { Toaster } from './components/Toast'
 
 const tabs = [
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/recipes/:id" element={<RecipeEditor />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/categories" element={<CategoriesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
