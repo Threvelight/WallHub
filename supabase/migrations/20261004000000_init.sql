@@ -2,7 +2,6 @@
 -- Every household-owned row carries household_id so Row Level Security can scope it,
 -- and so Phase 2 tables (calendar, chores, budget) can follow the same pattern.
 
-create extension if not exists pgcrypto;
 
 -- ---------------------------------------------------------------------------
 -- Tables
@@ -11,7 +10,7 @@ create extension if not exists pgcrypto;
 create table public.households (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (length(trim(name)) > 0),
-  invite_code text not null unique default upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8)),
+  invite_code text not null unique default upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)),
   created_by  uuid references auth.users (id) on delete set null,
   created_at  timestamptz not null default now()
 );
@@ -264,7 +263,7 @@ declare
   new_code text;
 begin
   update public.households h
-     set invite_code = upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8))
+     set invite_code = upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8))
    where h.id = public.current_household_id()
      and public.is_household_owner()
   returning invite_code into new_code;
