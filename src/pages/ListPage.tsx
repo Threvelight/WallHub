@@ -162,16 +162,6 @@ export default function ListPage() {
     })
   }
 
-  async function clearChecked() {
-    if (!inCart.length || !data.list) return
-    if (!confirm(`Remove ${inCart.length} checked item${inCart.length === 1 ? '' : 's'} from the list?`)) return
-    const ids = inCart.map((i) => i.id)
-    setData((d) => ({ ...d, items: d.items.filter((i) => !i.checked) }))
-    await run(async () => {
-      must(await supabase.from('grocery_items').delete().in('id', ids).select())
-    })
-  }
-
   async function finishTrip() {
     if (!data.items.length) return
     const carry = toBuy.length
@@ -269,9 +259,6 @@ export default function ListPage() {
         <>
           <div className="section-head">
             <h2>In the cart</h2>
-            <button className="small" onClick={clearChecked} disabled={busy}>
-              Clear checked
-            </button>
           </div>
           <ul className="items done">
             {inCart.map((item) => (
