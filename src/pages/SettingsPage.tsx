@@ -151,7 +151,7 @@ export default function SettingsPage() {
 
       <section className="card stack">
         <h2>Past lists</h2>
-        {!history.length && <p className="muted small">Lists show up here after you tap “Done shopping”.</p>}
+        {!history.length && <p className="muted small">Lists show up here after you tap “Finalize list”.</p>}
         <ul className="history">
           {history.map((h) => (
             <li key={h.id}>

@@ -8,7 +8,7 @@ Shared household grocery list and recipes. React + TypeScript PWA, Supabase (Pos
 
 - **One household, separate logins.** The first person creates an account and a household. Settings shows an invite code and a share link; everyone else creates their own account and joins with the code. Everyone in the household sees the same data, and nobody outside it can read it (Row Level Security).
 - **The list.** There is always one active list. Tap the circle to check items off, tap the item to edit quantity or notes, tap ★ to save it as a favorite. Every device updates instantly via Supabase Realtime (and refreshes when the app returns to the foreground).
-- **Done shopping** saves the list to history and starts a fresh one. Anything not checked off carries over. **Clear checked** just removes checked items.
+- **Finalize list** saves the list to history and starts a fresh one. Anything not checked off carries over. **Clear checked** just removes checked items.
 - **Load last week** copies the most recent saved list into the current one, skipping anything already on it. Settings → Past lists can load any earlier week.
 - **Recipes.** Ingredients are linked to grocery items by name: "Add to list" adds each ingredient, and if the item is already on the list it adds a note ("Tacos (2)") instead of a duplicate.
 - **Favorites.** "Add all" puts every staple not already on the list onto it; or select a few.

@@ -176,13 +176,13 @@ export default function ListPage() {
     if (!data.items.length) return
     const carry = toBuy.length
     const msg =
-      `Done shopping? This saves the list to history (for "Load last week") and starts a fresh list.` +
+      `Finalize list? This saves the list to history and starts a fresh list.` +
       (carry ? ` ${carry} unchecked item${carry === 1 ? '' : 's'} will carry over.` : '')
     if (!confirm(msg)) return
     await run(async () => {
       must(await supabase.rpc('finish_list'))
       await reload()
-      toast('Trip saved. Fresh list started.')
+      toast('List finalized. Fresh list started.')
     })
   }
 
@@ -292,7 +292,7 @@ export default function ListPage() {
       {data.items.length > 0 && (
         <div className="finish">
           <button className="primary wide" onClick={finishTrip} disabled={busy}>
-            ✓ Done shopping
+            ✓ Finalize list
           </button>
           <p className="muted small">Saves this week's list so you can load it next week.</p>
         </div>
