@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { getHistory, getMembers, must, rpcCount } from '../lib/data'
 import { useLiveQuery } from '../lib/live'
+import { clearOrders } from '../lib/order'
 import { errorMessage, supabase } from '../lib/supabase'
 import { toast } from '../components/Toast'
 
@@ -164,6 +165,8 @@ export default function SettingsPage() {
                   onClick={() =>
                     run(async () => {
                       const added = await rpcCount('load_history', { history_id: h.id })
+                      // A loaded list starts in the default alphabetical order.
+                      clearOrders()
                       toast(added ? `Added ${added} item${added === 1 ? '' : 's'} to the list` : 'Already on the list')
                     })
                   }

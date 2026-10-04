@@ -226,3 +226,19 @@ select {
 }
 .category-row.standard { background: var(--surface-2); color: var(--muted); }
 .settings-link { display: flex; align-items: center; justify-content: space-between; color: inherit; min-height: 44px; }
+
+/* Drag-and-drop reordering */
+.drag-handle {
+  flex: none; width: 28px; height: 44px; min-height: 0; padding: 0; margin-right: -6px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; color: var(--muted); opacity: 0.55;
+  cursor: grab; touch-action: none;
+}
+.drag-handle:active { cursor: grabbing; }
+.item.dragging { opacity: 0.35; }
+.item.overlay { box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); cursor: grabbing; }
+.drop-hint {
+  min-height: 58px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+  border: 2px dashed var(--border); border-radius: 12px; color: var(--muted); font-size: 0.9rem;
+}
+.category-group.drop-over .drop-hint { border-color: var(--accent); color: var(--accent); }
