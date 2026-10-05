@@ -358,3 +358,5 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .product-img { flex: none; width: 48px; height: 48px; object-fit: contain; border-radius: 8px; background: #fff; }
 .product-img.no-img { background: var(--surface-2); }
 .item-size { color: var(--muted); font-size: 0.92rem; }
+.item-img { width: 40px; height: 40px; margin: 0 2px 0 -2px; }
+.item.checked .item-img { opacity: 0.6; }

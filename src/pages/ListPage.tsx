@@ -40,6 +40,8 @@ import { toast } from '../components/Toast'
 import UpcomingEvents from '../components/UpcomingEvents'
 import FrysSearch from '../components/FrysSearch'
 import { brandIsInName, type KrogerProduct } from '../lib/kroger'
+import { useProductPictures } from '../lib/useProductPictures'
+import ProductImage from '../components/ProductImage'
 
 type ListState = { list: GroceryList | null; items: GroceryItem[] }
 /** One category section of the to-buy list, as item ids in display order. */
@@ -101,6 +103,7 @@ export default function ListPage() {
 
   const toBuy = useMemo(() => data.items.filter((i) => !i.checked), [data.items])
   const itemById = useMemo(() => new Map(data.items.map((i) => [i.id, i])), [data.items])
+  const pictures = useProductPictures(data.items.flatMap((i) => (i.kroger_product_id ? [i.kroger_product_id] : [])))
   const productIdsToBuy = useMemo(() => new Set(toBuy.flatMap((i) => (i.kroger_product_id ? [i.kroger_product_id] : []))), [toBuy])
 
   // Custom order for this list on this device (drag-and-drop); empty = alphabetical.
@@ -426,6 +429,7 @@ export default function ListPage() {
                   <SortableItemRow
                     key={id}
                     item={item}
+                    picture={item.kroger_product_id ? pictures.get(item.kroger_product_id) : null}
                     by={item.added_by ? memberName.get(item.added_by) : undefined}
                     isFavorite={favoriteNames.has(normalize(item.name))}
                     onToggle={() => toggle(item)}
@@ -442,6 +446,7 @@ export default function ListPage() {
             <ul className="items">
               <ItemRow
                 item={itemById.get(activeId)!}
+                picture={pictures.get(itemById.get(activeId)!.kroger_product_id ?? '')}
                 isFavorite={favoriteNames.has(normalize(itemById.get(activeId)!.name))}
                 className="overlay"
                 handle={<span className="drag-handle"><GripIcon /></span>}
@@ -464,6 +469,7 @@ export default function ListPage() {
               <ItemRow
                 key={item.id}
                 item={item}
+                picture={item.kroger_product_id ? pictures.get(item.kroger_product_id) : null}
                 by={item.checked_by ? memberName.get(item.checked_by) : undefined}
                 isFavorite={favoriteNames.has(normalize(item.name))}
                 onToggle={() => toggle(item)}
@@ -523,6 +529,8 @@ function CategorySection({ group, dragging, children }: { group: Group; dragging
 
 type RowProps = {
   item: GroceryItem
+  /** Live Fry's picture, when the item came from Fry's search and Fry's still has it. */
+  picture?: string | null
   by?: string
   isFavorite: boolean
   onToggle: () => void
@@ -559,6 +567,7 @@ function GripIcon() {
 
 function ItemRow({
   item,
+  picture,
   by,
   isFavorite,
   onToggle,
@@ -575,6 +584,7 @@ function ItemRow({
       <button className="check" onClick={onToggle} aria-label={item.checked ? `Uncheck ${item.name}` : `Check off ${item.name}`}>
         {item.checked ? '✓' : ''}
       </button>
+      {picture && <ProductImage src={picture} className="item-img" hideMissing />}
       <button className="item-body" onClick={onEdit}>
         <span className="item-name">
           <span>

@@ -1,9 +1,20 @@
 import { useState } from 'react'
 
-/** A Fry's product picture, or an empty tile when there is none or it fails to load (never a broken image). */
-export default function ProductImage({ src, className = '' }: { src: string | null | undefined; className?: string }) {
+/**
+ * A Fry's product picture. With no picture, or one that fails to load, it shows an
+ * empty tile, or nothing at all when `hideMissing` is set. Never a broken image.
+ */
+export default function ProductImage({
+  src,
+  className = '',
+  hideMissing = false,
+}: {
+  src: string | null | undefined
+  className?: string
+  hideMissing?: boolean
+}) {
   const [failed, setFailed] = useState<string | null>(null)
-  if (!src || failed === src) return <span className={`product-img no-img ${className}`} aria-hidden />
+  if (!src || failed === src) return hideMissing ? null : <span className={`product-img no-img ${className}`} aria-hidden />
   return (
     <img
       className={`product-img ${className}`}
