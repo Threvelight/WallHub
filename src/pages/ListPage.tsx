@@ -59,7 +59,10 @@ const collisionDetection: CollisionDetection = (args) => {
 }
 
 export default function ListPage() {
-  const { household, member } = useAuth()
+  const { household, member, refresh } = useAuth()
+  // Only the household owner finalizes the list (finish_list enforces it too).
+  const isOwner = member?.role === 'owner'
+  const OWNER_ONLY = 'Only the household owner can finalize the list'
   const hid = household?.id
 
   const { data, setData, loading, error, reload } = useLiveQuery<ListState>(
@@ -337,13 +340,26 @@ export default function ListPage() {
       `Finalize list? This saves the list to history and starts a fresh list.` +
       (carry ? ` ${carry} unchecked item${carry === 1 ? '' : 's'} will carry over.` : '')
     if (!confirm(msg)) return
-    clearOrders()
-    setOrder([])
-    await run(async () => {
+    setBusy(true)
+    try {
       must(await supabase.rpc('finish_list'))
+      clearOrders()
+      setOrder([])
       await reload()
       toast('List finalized. Fresh list started.')
-    })
+    } catch (e) {
+      if (errorMessage(e).includes(OWNER_ONLY)) {
+        // Their role changed while the page was open: say so, leave the list as
+        // it is, and pick up the new role (which hides the button).
+        toast(OWNER_ONLY)
+        void refresh()
+      } else {
+        toast(errorMessage(e))
+        void reload()
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function loadLastWeek() {
@@ -481,7 +497,7 @@ export default function ListPage() {
         </>
       )}
 
-      {data.items.length > 0 && (
+      {isOwner && data.items.length > 0 && (
         <div className="finish">
           <button className="primary wide" onClick={finishTrip} disabled={busy}>
             ✓ Finalize list
