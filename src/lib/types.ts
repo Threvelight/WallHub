@@ -96,3 +96,18 @@ export type Category = {
   sort_order: number
   created_at: string
 }
+
+export type CalendarEvent = {
+  id: string
+  household_id: string
+  title: string
+  description: string | null
+  /** YYYY-MM-DD */
+  date: string
+  /** HH:MM:SS, or null for an all-day event */
+  time: string | null
+  event_type: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}

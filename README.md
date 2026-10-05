@@ -4,6 +4,8 @@ Shared household grocery list and recipes. React + TypeScript PWA, Supabase (Pos
 
 **Phase 1:** shared grocery list with live sync, recipes that add their ingredients to the list, favorites (quick-add staples), "Load last week", and one household with invited members.
 
+**Phase 1.5:** shared family calendar.
+
 ## How it works
 
 - **One household, separate logins.** The first person creates an account and a household. Settings shows an invite code and a share link; everyone else creates their own account and joins with the code. Everyone in the household sees the same data, and nobody outside it can read it (Row Level Security).
@@ -13,6 +15,7 @@ Shared household grocery list and recipes. React + TypeScript PWA, Supabase (Pos
 - **Load last week** copies the most recent saved list into the current one, skipping anything already on it. Settings → Past lists can load any earlier week.
 - **Recipes.** Ingredients are linked to grocery items by name: "Add to list" adds each ingredient, and if the item is already on the list it adds a note ("Tacos (2)") instead of a duplicate.
 - **Favorites.** "Add all" puts every staple not already on the list onto it; or select a few.
+- **Calendar.** A month view everyone in the household shares. Tap an empty date to add an event, or a date with events to see them and add more; tap an event for its details, who added it, and Edit / Delete. Events have a title, date, optional time (no time means all day), optional description and an optional type (Grocery, Appointment, Birthday, Family Event, or Other with your own name). Changes sync to every device instantly. The top of the List tab shows the next 7 days of events; tap one to open it in the calendar.
 
 ## Setup
 
@@ -57,6 +60,7 @@ Then: you sign up and create the household, go to Settings → **Share invite**,
 | `recipe_ingredients` | Ingredients per recipe (matched to grocery items by name) |
 | `favorites` | Quick-add staples |
 | `list_history` | Snapshot of each finished list (powers "Load last week") |
+| `events` | Calendar events: title, date, optional time / description / type, who created it |
 
 Every household-owned table has `household_id`, protected by RLS via `current_household_id()`. Multi-step actions run as Postgres functions so they're atomic: `create_household`, `join_household`, `regenerate_invite_code`, `ensure_active_list`, `finish_list`, `load_history`, `add_recipe_to_list`, `add_favorites_to_list`. Phase 2 tables (calendar, chores, budget, meal plans) follow the same `household_id` + policy pattern, and the `category` columns on items and favorites are ready for store aisles or Fry's product mapping.
 

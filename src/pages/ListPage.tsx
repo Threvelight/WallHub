@@ -37,6 +37,7 @@ import { errorMessage, supabase } from '../lib/supabase'
 import type { GroceryItem, GroceryList } from '../lib/types'
 import ItemEditor, { CategorySelect } from '../components/ItemEditor'
 import { toast } from '../components/Toast'
+import UpcomingEvents from '../components/UpcomingEvents'
 
 type ListState = { list: GroceryList | null; items: GroceryItem[] }
 /** One category section of the to-buy list, as item ids in display order. */
@@ -321,6 +322,7 @@ export default function ListPage() {
 
   return (
     <div className="page">
+      <UpcomingEvents />
       <header className="page-head">
         <div>
           <h1>Grocery list</h1>
