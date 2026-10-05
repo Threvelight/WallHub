@@ -442,7 +442,6 @@ export default function ListPage() {
           <button className="primary wide" onClick={finishTrip} disabled={busy}>
             ✓ Finalize list
           </button>
-          <p className="muted small">Saves this week's list so you can load it next week.</p>
         </div>
       )}
 
