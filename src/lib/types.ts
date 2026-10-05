@@ -123,3 +123,11 @@ export type CalendarEvent = {
   created_at: string
   updated_at: string
 }
+
+/** The household's one shared note on the Today screen. */
+export type FamilyNote = {
+  household_id: string
+  body: string
+  updated_by: string | null
+  updated_at: string
+}

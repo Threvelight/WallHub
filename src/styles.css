@@ -10,6 +10,8 @@
   --accent-soft: #e2efe7;
   --danger: #b4372f;
   --star: #d9a21b;
+  --note-bg: #fff6c9;
+  --note-border: #eadb94;
   --ev-grocery: #2f8a57;
   --ev-appointment: #2f6fb4;
   --ev-birthday: #c2417f;
@@ -38,6 +40,8 @@
     --accent-text: #0d1a13;
     --accent-soft: #23382c;
     --danger: #ec7a70;
+    --note-bg: #3a3420;
+    --note-border: #574d2a;
     --ev-grocery: #5fb488;
     --ev-appointment: #6ea8e6;
     --ev-birthday: #e57fb0;
@@ -329,14 +333,6 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .day-event-time { flex: none; min-width: 64px; color: var(--muted); font-size: 0.9rem; }
 .day-event-title { flex: 1; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
 
-.upcoming { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 16px; }
-.upcoming-head { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 4px 2px; }
-.upcoming ul { list-style: none; margin: 0; padding: 0; }
-.upcoming-event {
-  width: 100%; justify-content: flex-start; gap: 10px; min-height: 40px; padding: 4px 2px;
-  border: none; background: none; text-align: left; white-space: normal; font-weight: 400; font-size: 0.95rem;
-}
-
 /* Fry's product search */
 .frys { margin: 4px 0 8px; }
 .frys-box { display: flex; align-items: center; gap: 4px; padding-left: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
@@ -376,10 +372,11 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .today-grid {
   display: grid; gap: 14px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'clock' 'weather' 'dinner' 'events' 'week' 'countdown';
+  grid-template-areas: 'clock' 'weather' 'note' 'dinner' 'events' 'week' 'countdown';
 }
 .today-clock { grid-area: clock; }
 .today-weather { grid-area: weather; }
+.note-card { grid-area: note; }
 .today-dinner { grid-area: dinner; }
 .today-events { grid-area: events; }
 .today-week { grid-area: week; }
@@ -424,3 +421,38 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .countdown-icon { font-size: 1.7rem; line-height: 1; }
 .today-credit { margin-top: 24px; }
 .today-credit a { color: var(--muted); }
+
+/* Family note board: a sticky note on Today */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.note-card {
+  display: block; width: 100%; min-height: 88px; padding: 18px 22px; text-align: left; white-space: normal; font-weight: 400;
+  background: var(--note-bg); border: 1px solid var(--note-border); border-radius: var(--radius); color: var(--text);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.06);
+}
+.note-body { margin: 0; font-size: 1.5rem; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-meta { margin: 10px 0 0; font-size: 0.95rem; color: var(--muted); }
+.note-empty { margin: 0; font-size: 1.25rem; color: var(--muted); }
+.note-input { font-size: 1.15rem; line-height: 1.4; resize: vertical; }
+.note-count { margin: -6px 0 0; text-align: right; font-size: 0.9rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.note-count.full { color: var(--danger); font-weight: 600; }
+.note-conflict {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border-left: 4px solid var(--star); font-size: 0.95rem;
+}
+.note-conflict button.small { min-height: 44px; }
+
+/* Night mode: Today dims between 9 PM and 6 AM; a tap brightens it. Covers the
+   whole screen, tabs included, so nothing bright is left on the wall. */
+.night {
+  position: fixed; inset: 0; z-index: 30; overflow: auto; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+  padding: calc(env(safe-area-inset-top) + 24px) 24px calc(env(safe-area-inset-bottom) + 24px);
+  background: #050605; color: #6f7772; text-align: center;
+}
+.night .today-clock { width: min(100%, 900px); padding: 0; }
+.night .clock-time { font-size: clamp(4.5rem, 24cqi, 11rem); font-weight: 200; }
+.night .clock-date { color: #4f5652; }
+.night .note-card {
+  width: min(100%, 640px); background: #111412; border-color: #1e2420; color: #8a918c; box-shadow: none; text-align: left;
+}
+.night .note-meta { color: #4f5652; }

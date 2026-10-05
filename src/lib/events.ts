@@ -82,11 +82,6 @@ export function formatTime(t: string) {
   return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
-/** "Dentist - Tue, Oct 7 at 3:00 PM", or without " at …" for all-day events. */
-export function eventSummary(e: Pick<CalendarEvent, 'title' | 'date' | 'time'>) {
-  return `${e.title} - ${formatDate(e.date)}${e.time ? ` at ${formatTime(e.time)}` : ''}`
-}
-
 /** All-day events first, then by time, then by title. */
 export function byStart(a: CalendarEvent, b: CalendarEvent) {
   return (
