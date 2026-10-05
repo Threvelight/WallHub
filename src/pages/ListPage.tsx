@@ -1,4 +1,22 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCorners,
+  pointerWithin,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type CollisionDetection,
+  type DragStartEvent,
+  type UniqueIdentifier,
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useAuth } from '../lib/auth'
 import {
   byCategoryName,
@@ -14,12 +32,26 @@ import {
   rpcCount,
 } from '../lib/data'
 import { normalize, useLiveQuery } from '../lib/live'
+import { clearOrders, loadOrder, saveOrder } from '../lib/order'
 import { errorMessage, supabase } from '../lib/supabase'
 import type { GroceryItem, GroceryList } from '../lib/types'
 import ItemEditor, { CategorySelect } from '../components/ItemEditor'
 import { toast } from '../components/Toast'
 
 type ListState = { list: GroceryList | null; items: GroceryItem[] }
+/** One category section of the to-buy list, as item ids in display order. */
+type Group = { id: string; name: string; ids: string[] }
+
+const OTHER = 'other'
+const groupDropId = (groupId: string) => `group:${groupId}`
+
+// Whatever is under the finger wins (an item over its section); in the gaps
+// between sections, the nearest target.
+const collisionDetection: CollisionDetection = (args) => {
+  const hits = pointerWithin(args)
+  if (hits.length) return [hits.find((h) => !String(h.id).startsWith('group:')) ?? hits[0]]
+  return closestCorners(args)
+}
 
 export default function ListPage() {
   const { household, member } = useAuth()
@@ -64,19 +96,117 @@ export default function ListPage() {
   const newItemCategory =
     pickedCategory ?? (rememberedCategory && categories.some((c) => c.id === rememberedCategory) ? rememberedCategory : fallbackCategory)
 
-  const toBuy = data.items.filter((i) => !i.checked)
-  const groups = useMemo(() => {
-    const byId = new Map(categories.map((c) => [c.id, c]))
-    const map = new Map<string, { name: string; items: GroceryItem[] }>()
-    for (const item of toBuy) {
-      // Items whose category was removed show under Other.
-      const groupName = (item.category_id && byId.get(item.category_id)?.name) || 'Other'
-      const key = groupName.toLowerCase()
-      if (!map.has(key)) map.set(key, { name: groupName, items: [] })
-      map.get(key)!.items.push(item)
+  const toBuy = useMemo(() => data.items.filter((i) => !i.checked), [data.items])
+  const itemById = useMemo(() => new Map(data.items.map((i) => [i.id, i])), [data.items])
+
+  // Custom order for this list on this device (drag-and-drop); empty = alphabetical.
+  const listId = data.list?.id
+  const [order, setOrder] = useState<string[]>([])
+  useEffect(() => {
+    if (!listId) return
+    clearOrders(listId)
+    setOrder(loadOrder(listId))
+  }, [listId])
+
+  // Category sections, alphabetical. Within a section, dragged items keep their
+  // custom position; the rest follow alphabetically.
+  const groupIdOf = useMemo(() => {
+    const ids = new Set(categories.map((c) => c.id))
+    const otherId = categories.find((c) => c.name === 'Other' && !c.is_custom)?.id ?? OTHER
+    // Items with no (or a removed) category show under Other.
+    return (item: GroceryItem) => (item.category_id && ids.has(item.category_id) ? item.category_id : otherId)
+  }, [categories])
+  const allGroups: Group[] = useMemo(() => {
+    const rank = new Map(order.map((id, i) => [id, i]))
+    const sections = categories.length ? categories.map((c) => ({ id: c.id, name: c.name })) : [{ id: OTHER, name: 'Other' }]
+    return sections
+      .map((c) => {
+        const items = toBuy.filter((i) => groupIdOf(i) === c.id)
+        items.sort(
+          (a, b) =>
+            (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) ||
+            a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+        )
+        return { ...c, ids: items.map((i) => i.id) }
+      })
+      .sort(byCategoryName)
+  }, [toBuy, categories, order, groupIdOf])
+
+  // While dragging, empty categories also show (as drop targets at the end) and
+  // the layout follows the pointer; it is committed on drop.
+  const [dragLayout, setDragLayout] = useState<Group[] | null>(null)
+  const dragLayoutRef = useRef<Group[] | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  function setLayout(next: Group[] | null) {
+    dragLayoutRef.current = next
+    setDragLayout(next)
+  }
+  const groups = (dragLayout ?? allGroups.filter((g) => g.ids.length))
+    .map((g) => ({ ...g, ids: g.ids.filter((id) => itemById.has(id)) }))
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function findGroup(layout: Group[], id: UniqueIdentifier) {
+    return layout.find((g) => groupDropId(g.id) === id || g.ids.includes(String(id)))
+  }
+
+  function onDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id))
+    // Empty categories go after the others so nothing above the finger shifts.
+    setLayout([...allGroups.filter((g) => g.ids.length), ...allGroups.filter((g) => !g.ids.length)])
+  }
+
+  function onDragOver({ active, over }: DragOverEvent) {
+    const layout = dragLayoutRef.current
+    if (!layout || !over) return
+    const from = findGroup(layout, active.id)
+    const to = findGroup(layout, over.id)
+    if (!from || !to || from === to) return
+    const id = String(active.id)
+    const overIndex = to.ids.indexOf(String(over.id))
+    const at = overIndex >= 0 ? overIndex : to.ids.length
+    setLayout(
+      layout.map((g) =>
+        g === from ? { ...g, ids: g.ids.filter((x) => x !== id) } : g === to ? { ...g, ids: [...g.ids.slice(0, at), id, ...g.ids.slice(at)] } : g,
+      ),
+    )
+  }
+
+  function onDragEnd({ active, over }: DragEndEvent) {
+    let layout = dragLayoutRef.current
+    setLayout(null)
+    setActiveId(null)
+    if (!layout || !over || !listId) return
+    const id = String(active.id)
+    const group = findGroup(layout, id)
+    if (!group) return
+    const from = group.ids.indexOf(id)
+    const to = group.ids.indexOf(String(over.id))
+    if (to >= 0 && to !== from) layout = layout.map((g) => (g === group ? { ...g, ids: arrayMove(g.ids, from, to) } : g))
+
+    const next = layout.flatMap((g) => g.ids)
+    setOrder(next)
+    saveOrder(listId, next)
+
+    // Moving into another category changes the item's category for everyone.
+    const item = itemById.get(id)
+    if (item && group.id !== OTHER && groupIdOf(item) !== group.id) {
+      const patch = { category_id: group.id }
+      patchItem(id, patch)
+      void run(async () => {
+        must(await supabase.from('grocery_items').update(patch).eq('id', id).select())
+        toast(`Moved ${item.name} to ${group.name}`)
+      })
     }
-    return [...map.values()].sort(byCategoryName)
-  }, [toBuy, categories])
+  }
+
+  function onDragCancel() {
+    setLayout(null)
+    setActiveId(null)
+  }
   const inCart = data.items.filter((i) => i.checked)
 
   function patchItem(id: string, patch: Partial<GroceryItem>) {
@@ -169,6 +299,8 @@ export default function ListPage() {
       `Finalize list? This saves the list to history and starts a fresh list.` +
       (carry ? ` ${carry} unchecked item${carry === 1 ? '' : 's'} will carry over.` : '')
     if (!confirm(msg)) return
+    clearOrders()
+    setOrder([])
     await run(async () => {
       must(await supabase.rpc('finish_list'))
       await reload()
@@ -179,6 +311,9 @@ export default function ListPage() {
   async function loadLastWeek() {
     await run(async () => {
       const added = await rpcCount('load_history')
+      // Loading a list resets any custom order back to alphabetical.
+      clearOrders()
+      setOrder([])
       await reload()
       toast(added ? `Added ${added} item${added === 1 ? '' : 's'} from last week` : 'Everything from last week is already on the list')
     })
@@ -236,24 +371,50 @@ export default function ListPage() {
         </div>
       )}
 
-      {groups.map((group) => (
-        <section key={group.name} className="category-group">
-          <h2 className="category-head">{group.name}</h2>
-          <ul className="items">
-            {group.items.map((item) => (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
+        onDragCancel={onDragCancel}
+      >
+        {groups.map((group) => (
+          <CategorySection key={group.id} group={group} dragging={!!activeId}>
+            <SortableContext items={group.ids} strategy={verticalListSortingStrategy}>
+              {group.ids.map((id) => {
+                const item = itemById.get(id)!
+                return (
+                  <SortableItemRow
+                    key={id}
+                    item={item}
+                    by={item.added_by ? memberName.get(item.added_by) : undefined}
+                    isFavorite={favoriteNames.has(normalize(item.name))}
+                    onToggle={() => toggle(item)}
+                    onEdit={() => setEditing(item)}
+                    onFavorite={() => toggleFavorite(item)}
+                  />
+                )
+              })}
+            </SortableContext>
+          </CategorySection>
+        ))}
+        <DragOverlay>
+          {activeId && itemById.has(activeId) ? (
+            <ul className="items">
               <ItemRow
-                key={item.id}
-                item={item}
-                by={item.added_by ? memberName.get(item.added_by) : undefined}
-                isFavorite={favoriteNames.has(normalize(item.name))}
-                onToggle={() => toggle(item)}
-                onEdit={() => setEditing(item)}
-                onFavorite={() => toggleFavorite(item)}
+                item={itemById.get(activeId)!}
+                isFavorite={favoriteNames.has(normalize(itemById.get(activeId)!.name))}
+                className="overlay"
+                handle={<span className="drag-handle"><GripIcon /></span>}
+                onToggle={() => {}}
+                onEdit={() => {}}
+                onFavorite={() => {}}
               />
-            ))}
-          </ul>
-        </section>
-      ))}
+            </ul>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {inCart.length > 0 && (
         <>
@@ -310,6 +471,55 @@ export default function ListPage() {
   )
 }
 
+function CategorySection({ group, dragging, children }: { group: Group; dragging: boolean; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: groupDropId(group.id) })
+  return (
+    <section ref={setNodeRef} className={`category-group ${isOver ? 'drop-over' : ''}`}>
+      <h2 className="category-head">{group.name}</h2>
+      <ul className="items">
+        {children}
+        {dragging && !group.ids.length && <li className="drop-hint">Drop here</li>}
+      </ul>
+    </section>
+  )
+}
+
+type RowProps = {
+  item: GroceryItem
+  by?: string
+  isFavorite: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onFavorite: () => void
+}
+
+function SortableItemRow(props: RowProps) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.item.id,
+  })
+  return (
+    <ItemRow
+      {...props}
+      rowRef={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={isDragging ? 'dragging' : ''}
+      handle={
+        <button type="button" className="drag-handle" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={`Reorder ${props.item.name}`}>
+          <GripIcon />
+        </button>
+      }
+    />
+  )
+}
+
+function GripIcon() {
+  return (
+    <svg width="14" height="20" viewBox="0 0 14 20" aria-hidden="true">
+      {[4, 10, 16].flatMap((y) => [4, 10].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" fill="currentColor" />))}
+    </svg>
+  )
+}
+
 function ItemRow({
   item,
   by,
@@ -317,16 +527,14 @@ function ItemRow({
   onToggle,
   onEdit,
   onFavorite,
-}: {
-  item: GroceryItem
-  by?: string
-  isFavorite: boolean
-  onToggle: () => void
-  onEdit: () => void
-  onFavorite: () => void
-}) {
+  handle,
+  rowRef,
+  style,
+  className = '',
+}: RowProps & { handle?: ReactNode; rowRef?: (el: HTMLElement | null) => void; style?: CSSProperties; className?: string }) {
   return (
-    <li className={`item ${item.checked ? 'checked' : ''}`}>
+    <li ref={rowRef} style={style} className={`item ${item.checked ? 'checked' : ''} ${className}`}>
+      {handle}
       <button className="check" onClick={onToggle} aria-label={item.checked ? `Uncheck ${item.name}` : `Check off ${item.name}`}>
         {item.checked ? '✓' : ''}
       </button>
