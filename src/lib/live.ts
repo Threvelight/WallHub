@@ -21,15 +21,21 @@ export function useLiveQuery<T>(
   fetcherRef.current = fetcher
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const latest = useRef(0)
+
   const reload = useCallback(async () => {
+    // Only the newest request may land, so a slow older one can't overwrite it.
+    const seq = ++latest.current
     try {
       const result = await fetcherRef.current()
+      if (seq !== latest.current) return
       setData(result)
       setError(null)
     } catch (e) {
+      if (seq !== latest.current) return
       setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setLoading(false)
+      if (seq === latest.current) setLoading(false)
     }
   }, [])
 
@@ -52,6 +58,9 @@ export function useLiveQuery<T>(
         { event: '*', schema: 'public', table, filter: `household_id=eq.${householdId}` },
         scheduleReload,
       )
+      // Realtime can't filter deletes, so listen to all of them; a stray one
+      // only costs a refetch.
+      channel.on('postgres_changes', { event: 'DELETE', schema: 'public', table }, scheduleReload)
     }
     channel.subscribe((status) => {
       // After a reconnect (phone slept, network blip) pick up anything missed.
