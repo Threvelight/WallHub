@@ -3,6 +3,7 @@ import { useAuth } from './lib/auth'
 import { supabaseConfigured } from './lib/supabase'
 import AuthPage from './pages/AuthPage'
 import OnboardingPage from './pages/OnboardingPage'
+import TodayPage from './pages/TodayPage'
 import ListPage from './pages/ListPage'
 import CalendarPage from './pages/CalendarPage'
 import RecipesPage from './pages/RecipesPage'
@@ -13,7 +14,8 @@ import CategoriesPage from './pages/CategoriesPage'
 import { Toaster } from './components/Toast'
 
 const tabs = [
-  { to: '/', label: 'List', icon: '🛒' },
+  { to: '/', label: 'Today', icon: '🏠' },
+  { to: '/list', label: 'List', icon: '🛒' },
   { to: '/calendar', label: 'Calendar', icon: '📅' },
   { to: '/recipes', label: 'Recipes', icon: '📖' },
   { to: '/favorites', label: 'Favorites', icon: '⭐' },
@@ -55,7 +57,8 @@ export default function App() {
       </nav>
       <main className="content">
         <Routes>
-          <Route path="/" element={<ListPage />} />
+          <Route path="/" element={<TodayPage />} />
+          <Route path="/list" element={<ListPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/recipes" element={<RecipesPage />} />
           <Route path="/recipes/new" element={<RecipeEditor />} />

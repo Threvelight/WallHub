@@ -5,7 +5,7 @@ import { must } from './data'
 import { supabase } from './supabase'
 import type { CalendarEvent } from './types'
 
-export const EVENT_TYPES = ['Grocery', 'Appointment', 'Birthday', 'Family Event', 'Other'] as const
+export const EVENT_TYPES = ['Grocery', 'Appointment', 'Birthday', 'Family Event', 'Dinner', 'Trip', 'Other'] as const
 
 /** CSS class for an event type's color; custom types share Other's. */
 export function typeClass(type: string | null) {
@@ -38,6 +38,15 @@ export function addDays(s: string, n: number) {
 }
 
 export const today = () => ymd(new Date())
+
+/** Whole calendar days from `from` to `to` (both YYYY-MM-DD), counted on local dates. */
+export function daysBetween(from: string, to: string) {
+  return Math.round((parseYmd(to).getTime() - parseYmd(from).getTime()) / 86_400_000)
+}
+
+/** True when an event's type is `type`, ignoring case and spaces around it. */
+export const isType = (e: Pick<CalendarEvent, 'event_type'>, type: string) =>
+  (e.event_type ?? '').trim().toLowerCase() === type.toLowerCase()
 
 /** The 6 weeks (Sunday first) shown for the month containing `month` (YYYY-MM-01). */
 export function monthGrid(month: string) {
