@@ -60,6 +60,14 @@ Then: you sign up and create the household, go to Settings → **Share invite**,
 
 Every household-owned table has `household_id`, protected by RLS via `current_household_id()`. Multi-step actions run as Postgres functions so they're atomic: `create_household`, `join_household`, `regenerate_invite_code`, `ensure_active_list`, `finish_list`, `load_history`, `add_recipe_to_list`, `add_favorites_to_list`. Phase 2 tables (calendar, chores, budget, meal plans) follow the same `household_id` + policy pattern, and the `category` columns on items and favorites are ready for store aisles or Fry's product mapping.
 
+## Backups
+
+- **Export / Import (Settings → Backup):** Export downloads `wallhub-full-backup-YYYY-MM-DD.json` with every finalized list, the current list, favorites, recipes and categories. Import reads a full backup or a weekly list file and only adds what's missing: lists already here (same name and date), favorites and recipes with the same name are skipped, and nothing existing is changed. It asks for confirmation first.
+- **Weekly email:** every Sunday at 8 PM Phoenix time (`0 3 * * 1` UTC in pg_cron), the `weekly-backup` Edge Function emails the week's finalized lists to `wallhub@threvelight.com` as `wallhub-<list-name>-<date>.json` attachments, or a short note if there were none. Email goes through [Resend](https://resend.com).
+  - Edge Function secrets: `RESEND_API_KEY` (required), `BACKUP_EMAIL_TO` (default `wallhub@threvelight.com`), `BACKUP_EMAIL_FROM` (default `WallHub <onboarding@resend.dev>`, which only delivers to the Resend account's own address; verify a domain in Resend to use another sender).
+  - The schedule authenticates with a token in `private.backup_config`. Manual runs in the SQL editor: `select private.run_weekly_backup(true);` is a dry run (see `net._http_response`), `select private.run_weekly_backup();` sends.
+  - Tests for the email builder: `node --experimental-strip-types supabase/functions/weekly-backup/email.test.ts`
+
 ## Scripts
 
 - `npm run dev`: local dev server
