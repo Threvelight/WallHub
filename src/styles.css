@@ -14,6 +14,8 @@
   --ev-appointment: #2f6fb4;
   --ev-birthday: #c2417f;
   --ev-family-event: #c7741c;
+  --ev-dinner: #b8563a;
+  --ev-trip: #1f8a8c;
   --ev-other: #7a6fae;
   --ev-none: #8a918c;
   --radius: 14px;
@@ -40,6 +42,8 @@
     --ev-appointment: #6ea8e6;
     --ev-birthday: #e57fb0;
     --ev-family-event: #e6a35a;
+    --ev-dinner: #e88a6c;
+    --ev-trip: #5cc4c4;
     --ev-other: #a99fe0;
     --ev-none: #8f9893;
     color-scheme: dark;
@@ -263,6 +267,8 @@ select {
 .type-appointment { --ev: var(--ev-appointment); }
 .type-birthday { --ev: var(--ev-birthday); }
 .type-family-event { --ev: var(--ev-family-event); }
+.type-dinner { --ev: var(--ev-dinner); }
+.type-trip { --ev: var(--ev-trip); }
 .type-other { --ev: var(--ev-other); }
 .type-none { --ev: var(--ev-none); }
 .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ev); }
@@ -362,3 +368,59 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .item-size { color: var(--muted); font-size: 0.92rem; }
 .item-img { width: 40px; height: 40px; margin: 0 2px 0 -2px; }
 .item.checked .item-img { opacity: 0.6; }
+
+/* Today: a calm wall display for the kitchen iPad. One column on phones and in
+   portrait, two in landscape. Named grid areas leave room for the note board and
+   photo frame planned next. */
+.today-page { max-width: 1240px; }
+.today-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'clock' 'weather' 'dinner' 'events' 'week' 'countdown';
+}
+.today-clock { grid-area: clock; }
+.today-weather { grid-area: weather; }
+.today-dinner { grid-area: dinner; }
+.today-events { grid-area: events; }
+.today-week { grid-area: week; }
+.today-countdowns { grid-area: countdown; }
+/* Columns only group the cards in landscape; elsewhere the grid places each card. */
+.today-col { display: contents; }
+@media (min-width: 1000px) and (orientation: landscape) {
+  .today-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: none; align-items: start; }
+  .today-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+}
+.today-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; min-width: 0; }
+.today-clock { background: none; border: none; padding: 4px 4px 0; container-type: inline-size; }
+.clock-time { white-space: nowrap; font-size: clamp(3.5rem, 21cqi, 7.5rem); font-weight: 300; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.clock-date { font-size: clamp(1.4rem, 6.5cqi, 2.1rem); color: var(--muted); margin-top: 6px; }
+.today-weather { display: flex; align-items: center; gap: 16px; min-height: 96px; }
+.today-weather:empty { display: none; }
+.weather-icon { font-size: 3.4rem; line-height: 1; }
+.weather-temp { font-size: 3rem; font-weight: 600; line-height: 1; }
+.weather-label { font-size: 1.2rem; color: var(--muted); margin-top: 4px; }
+.weather-range { margin-left: auto; font-size: 1.25rem; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.today-head { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px; }
+.today-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.today-event {
+  width: 100%; justify-content: flex-start; gap: 14px; min-height: 56px; padding: 8px 14px;
+  border-left: 5px solid var(--ev); text-align: left; white-space: normal; font-weight: 400; font-size: 1.25rem;
+}
+.today-event-time { flex: none; min-width: 92px; color: var(--muted); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.today-event-title { flex: 1; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+.today-event.dinner { font-size: 1.6rem; min-height: 64px; }
+.today-event.dinner .today-event-time { order: 1; min-width: 0; text-align: right; }
+.today-empty { font-size: 1.15rem; margin: 4px 0; }
+.today-empty-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 1.3rem; }
+.today-empty-row button { min-height: 48px; }
+.week-day + .week-day { margin-top: 14px; }
+.week-day h3 { font-size: 1.05rem; margin: 0 0 6px 2px; }
+.today-countdowns { display: flex; flex-wrap: wrap; gap: 10px; }
+.countdown {
+  flex: 1 1 260px; justify-content: flex-start; gap: 12px; min-height: 60px; padding: 10px 16px;
+  font-size: 1.2rem; font-weight: 400; white-space: normal; text-align: left;
+  background: color-mix(in srgb, var(--ev) 14%, var(--surface)); border-color: var(--ev);
+}
+.countdown-icon { font-size: 1.7rem; line-height: 1; }
+.today-credit { margin-top: 24px; }
+.today-credit a { color: var(--muted); }
