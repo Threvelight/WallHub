@@ -6,7 +6,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // No offline cache: the list needs Supabase anyway, and a stale cached copy
+      // left some phones on a blank screen. This ships a service worker that
+      // removes any earlier one and its caches. The manifest still lets people
+      // add WallHub to their home screen.
+      selfDestroying: true,
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'favicon-48.png', 'apple-touch-icon.png', 'icon.svg'],
       manifest: {
         name: 'WallHub',

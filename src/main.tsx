@@ -1,12 +1,18 @@
 import { Component, StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { registerSW } from 'virtual:pwa-register'
 import { AuthProvider } from './lib/auth'
 import App from './App'
 import './styles.css'
 
-registerSW({ immediate: true })
+// Earlier versions installed an offline cache (service worker). Remove it and
+// its caches so every device loads the current version straight from the site.
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => void r.unregister()))
+}
+if ('caches' in window) {
+  void caches.keys().then((keys) => keys.forEach((k) => void caches.delete(k)))
+}
 
 declare global {
   interface Window {

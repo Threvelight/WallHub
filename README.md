@@ -63,5 +63,5 @@ Every household-owned table has `household_id`, protected by RLS via `current_ho
 ## Scripts
 
 - `npm run dev`: local dev server
-- `npm run build`: typecheck + production build (PWA service worker included)
+- `npm run build`: typecheck + production build (web app manifest for home-screen install; no offline cache)
 - `npm run typecheck`
