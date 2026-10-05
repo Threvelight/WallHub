@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './lib/auth'
 import { supabaseConfigured } from './lib/supabase'
 import AuthPage from './pages/AuthPage'
@@ -58,6 +58,7 @@ export default function App() {
       <main className="content">
         <Routes>
           <Route path="/" element={<TodayPage />} />
+          <Route path="/today" element={<ToToday />} />
           <Route path="/list" element={<ListPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/recipes" element={<RecipesPage />} />
@@ -72,4 +73,10 @@ export default function App() {
       <Toaster />
     </div>
   )
+}
+
+/** /today is another name for the Today screen; its ?query (e.g. ?night=1) carries over. */
+function ToToday() {
+  const { search } = useLocation()
+  return <Navigate to={{ pathname: '/', search }} replace />
 }

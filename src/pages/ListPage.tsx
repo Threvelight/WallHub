@@ -37,7 +37,6 @@ import { errorMessage, supabase } from '../lib/supabase'
 import type { GroceryItem, GroceryList } from '../lib/types'
 import ItemEditor, { CategorySelect } from '../components/ItemEditor'
 import { toast } from '../components/Toast'
-import UpcomingEvents from '../components/UpcomingEvents'
 import FrysSearch from '../components/FrysSearch'
 import { brandIsInName, type KrogerProduct } from '../lib/kroger'
 import { useProductPictures } from '../lib/useProductPictures'
@@ -394,7 +393,6 @@ export default function ListPage() {
 
   return (
     <div className="page">
-      <UpcomingEvents />
       <header className="page-head">
         <div>
           <h1>Grocery list</h1>

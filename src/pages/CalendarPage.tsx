@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { getMembers } from '../lib/data'
 import {
@@ -31,11 +30,7 @@ const MAX_LABELS = 2
 export default function CalendarPage() {
   const { household } = useAuth()
   const hid = household?.id
-  const [params, setParams] = useSearchParams()
-  const linkedDate = params.get('date')
-  const linkedEvent = params.get('event')
-
-  const [month, setMonth] = useState(() => monthOf(linkedDate ?? today()))
+  const [month, setMonth] = useState(() => monthOf(today()))
   const days = useMemo(() => monthGrid(month), [month])
   const [sheet, setSheet] = useState<Sheet | null>(null)
 
@@ -58,20 +53,6 @@ export default function CalendarPage() {
     for (const e of events) map.set(e.date, [...(map.get(e.date) ?? []), e])
     return map
   }, [events])
-
-  // Arriving from the upcoming banner: show that month and open the event.
-  useEffect(() => {
-    if (!linkedDate) return
-    const target = monthOf(linkedDate)
-    if (target !== month) {
-      setMonth(target)
-      return
-    }
-    if (!ready) return
-    if (linkedEvent && events.some((e) => e.id === linkedEvent)) setSheet({ kind: 'details', id: linkedEvent })
-    else if (byDate.has(linkedDate)) setSheet({ kind: 'day', date: linkedDate })
-    setParams({}, { replace: true })
-  }, [linkedDate, linkedEvent, month, ready, events, byDate, setParams])
 
   // An open event deleted on another device closes its sheet.
   const detailsEvent = sheet?.kind === 'details' ? events.find((e) => e.id === sheet.id) : undefined
