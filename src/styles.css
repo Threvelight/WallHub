@@ -183,6 +183,8 @@ button.wide { width: 100%; min-height: 52px; font-size: 1.05rem; }
 .item-meta { font-size: 0.82rem; color: var(--muted); }
 .by { font-style: italic; }
 .on-list { color: var(--accent); }
+.fav-on-list { white-space: nowrap; font-size: 0.9rem; font-weight: 600; padding: 0 6px; }
+.all-on-list { margin: 20px 0 4px; }
 .item.checked .item-name { text-decoration: line-through; color: var(--muted); }
 .items.done .item { opacity: 0.75; }
 .star { border: none; background: none; width: 44px; padding: 0; font-size: 1.35rem; color: var(--muted); }

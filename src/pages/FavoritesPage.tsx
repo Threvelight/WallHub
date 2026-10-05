@@ -4,22 +4,32 @@ import { getActiveList, getFavorites, getItems, must, rpcCount } from '../lib/da
 import { normalize, useLiveQuery } from '../lib/live'
 import { errorMessage, supabase } from '../lib/supabase'
 import type { Favorite } from '../lib/types'
+import { brandIsInName } from '../lib/kroger'
+import { useProductPictures } from '../lib/useProductPictures'
 import ItemEditor from '../components/ItemEditor'
+import ProductImage from '../components/ProductImage'
 import { toast } from '../components/Toast'
+
+/** Unchecked items on the active list, by name and by Fry's product (the rule add_favorites_to_list uses). */
+type OnList = { names: Set<string>; productIds: Set<string> }
 
 export default function FavoritesPage() {
   const { household, member } = useAuth()
   const hid = household?.id
   const { data: favorites, setData, loading, error } = useLiveQuery('favorites', hid, ['favorites'], getFavorites, [])
-  const { data: onList } = useLiveQuery(
+  const { data: onList } = useLiveQuery<OnList>(
     'favorites-onlist',
     hid,
     ['grocery_items', 'grocery_lists'],
     async () => {
       const list = await getActiveList()
-      return new Set((await getItems(list.id)).filter((i) => !i.checked).map((i) => normalize(i.name)))
+      const items = (await getItems(list.id)).filter((i) => !i.checked)
+      return {
+        names: new Set(items.map((i) => normalize(i.name))),
+        productIds: new Set(items.flatMap((i) => (i.kroger_product_id ? [i.kroger_product_id] : []))),
+      }
     },
-    new Set<string>(),
+    { names: new Set(), productIds: new Set() },
   )
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [name, setName] = useState('')
@@ -27,7 +37,18 @@ export default function FavoritesPage() {
   const [editing, setEditing] = useState<Favorite | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const notOnList = useMemo(() => favorites.filter((f) => !onList.has(normalize(f.name))), [favorites, onList])
+  const [onListFavs, notOnList] = useMemo(() => {
+    const on: Favorite[] = []
+    const off: Favorite[] = []
+    for (const f of favorites) {
+      const listed = onList.names.has(normalize(f.name)) || (!!f.kroger_product_id && onList.productIds.has(f.kroger_product_id))
+      ;(listed ? on : off).push(f)
+    }
+    return [on, off]
+  }, [favorites, onList])
+  // A selected favorite that lands on the list (here or on another device) drops out of the selection.
+  const picked = notOnList.filter((f) => selected.has(f.id)).map((f) => f.id)
+  const pictures = useProductPictures(favorites.flatMap((f) => (f.kroger_product_id ? [f.kroger_product_id] : [])))
 
   async function run(fn: () => Promise<void>) {
     setBusy(true)
@@ -79,6 +100,39 @@ export default function FavoritesPage() {
     })
   }
 
+  function row(f: Favorite, already: boolean) {
+    const isSelected = !already && selected.has(f.id)
+    const picture = f.kroger_product_id ? pictures.get(f.kroger_product_id) : null
+    return (
+      <li key={f.id} className={`item ${isSelected ? 'selected' : ''}`}>
+        {!already && (
+          <button className={`check square ${isSelected ? 'on' : ''}`} onClick={() => toggleSelect(f.id)} aria-label={`Select ${f.name}`}>
+            {isSelected ? '✓' : ''}
+          </button>
+        )}
+        {picture && <ProductImage src={picture} className="item-img" hideMissing />}
+        <button className="item-body" onClick={() => setEditing(f)}>
+          <span className="item-name">
+            <span>
+              {!brandIsInName(f.brand, f.name) && <strong>{f.brand} </strong>}
+              {f.name}
+              {f.size && <span className="item-size"> · {f.size}</span>}
+            </span>
+            {f.quantity && <span className="qty-pill">{f.quantity}</span>}
+          </span>
+          {f.notes && <span className="item-meta">{f.notes}</span>}
+        </button>
+        {already ? (
+          <span className="on-list fav-on-list">✓ On list</span>
+        ) : (
+          <button className="small" disabled={busy} onClick={() => addToList([f.id])}>
+            + Add
+          </button>
+        )}
+      </li>
+    )
+  }
+
   return (
     <div className="page">
       <header className="page-head">
@@ -87,12 +141,12 @@ export default function FavoritesPage() {
           <p className="muted small">Weekly staples. Tap the ★ on any list item to save it here.</p>
         </div>
         <div className="row wrap">
-          {selected.size > 0 ? (
-            <button className="primary" disabled={busy} onClick={() => addToList([...selected])}>
-              Add {selected.size} selected
+          {picked.length > 0 ? (
+            <button className="primary" disabled={busy} onClick={() => addToList(picked)}>
+              Add {picked.length} selected
             </button>
           ) : (
-            <button className="primary" disabled={busy || !notOnList.length} onClick={() => addToList(null)}>
+            <button className="primary" disabled={busy || !notOnList.length} onClick={() => addToList(notOnList.map((f) => f.id))}>
               Add all {notOnList.length || ''} to list
             </button>
           )}
@@ -116,39 +170,27 @@ export default function FavoritesPage() {
         </div>
       )}
 
-      <ul className="items">
-        {favorites.map((f) => {
-          const already = onList.has(normalize(f.name))
-          return (
-            <li key={f.id} className={`item ${selected.has(f.id) ? 'selected' : ''}`}>
-              <button
-                className={`check square ${selected.has(f.id) ? 'on' : ''}`}
-                onClick={() => toggleSelect(f.id)}
-                disabled={already}
-                aria-label={`Select ${f.name}`}
-              >
-                {selected.has(f.id) ? '✓' : ''}
-              </button>
-              <button className="item-body" onClick={() => setEditing(f)}>
-                <span className="item-name">
-                  {f.name}
-                  {f.quantity && <span className="qty-pill">{f.quantity}</span>}
-                </span>
-                {(f.notes || already) && (
-                  <span className="item-meta">
-                    {f.notes}
-                    {f.notes && already ? ' · ' : ''}
-                    {already && <span className="on-list">on the list</span>}
-                  </span>
-                )}
-              </button>
-              <button className="small" disabled={already || busy} onClick={() => addToList([f.id])}>
-                + Add
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      {favorites.length > 0 && !notOnList.length && (
+        <p className="muted all-on-list">Every favorite is already on the list. Nice!</p>
+      )}
+
+      {onListFavs.length > 0 && (
+        <>
+          <div className="section-head">
+            <h2>On the current list ({onListFavs.length})</h2>
+          </div>
+          <ul className="items">{onListFavs.map((f) => row(f, true))}</ul>
+        </>
+      )}
+
+      {notOnList.length > 0 && (
+        <>
+          <div className="section-head">
+            <h2>Not on the current list ({notOnList.length})</h2>
+          </div>
+          <ul className="items">{notOnList.map((f) => row(f, false))}</ul>
+        </>
+      )}
 
       {editing && (
         <ItemEditor

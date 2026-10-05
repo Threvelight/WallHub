@@ -295,6 +295,15 @@ export default function ListPage() {
       const inserted = must(await supabase.from('grocery_items').insert(row).select().single()) as GroceryItem
       setData((d) => (d.items.some((i) => i.id === inserted.id) ? d : { ...d, items: [...d.items, inserted] }))
       toast(`Added ${n}${row.size ? ` (${row.size})` : ''}`)
+      // A favorite saved before it had a Fry's product picks this one up.
+      const fav = favorites.find((f) => !f.kroger_product_id && normalize(f.name) === normalize(n))
+      if (fav) {
+        await supabase
+          .from('favorites')
+          .update({ kroger_product_id: row.kroger_product_id, brand: row.brand, size: row.size })
+          .eq('id', fav.id)
+          .is('kroger_product_id', null)
+      }
     })
   }
 
@@ -325,7 +334,17 @@ export default function ListPage() {
         must(
           await supabase
             .from('favorites')
-            .insert({ household_id: hid, name: item.name, quantity: item.quantity, notes: null, category: item.category, created_by: member?.id })
+            .insert({
+              household_id: hid,
+              name: item.name,
+              quantity: item.quantity,
+              notes: null,
+              category: item.category,
+              created_by: member?.id,
+              kroger_product_id: item.kroger_product_id,
+              brand: item.brand,
+              size: item.size,
+            })
             .select(),
         )
         toast(`⭐ ${item.name} saved to favorites`)
