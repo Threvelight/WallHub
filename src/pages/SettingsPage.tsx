@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { applyImport, buildBackup, describePlan, downloadJson, loadExisting, localDate, parseBackupFile, planImport } from '../lib/backup'
 import { getHistory, getMembers, must, rpcCount } from '../lib/data'
 import { useLiveQuery } from '../lib/live'
 import { clearOrders } from '../lib/order'
@@ -15,6 +16,8 @@ export default function SettingsPage() {
   const [householdName, setHouseholdName] = useState(household?.name ?? '')
   const [myName, setMyName] = useState(member?.display_name ?? '')
   const [openHistory, setOpenHistory] = useState<string | null>(null)
+  const [backupBusy, setBackupBusy] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
   const isOwner = member?.role === 'owner'
 
   if (!household || !member) return null
@@ -40,6 +43,34 @@ export default function SettingsPage() {
     }
     await navigator.clipboard.writeText(text)
     toast('Invite copied')
+  }
+
+  async function exportBackup() {
+    setBackupBusy(true)
+    await run(async () => {
+      const backup = await buildBackup(household!.name)
+      downloadJson(backup, `wallhub-full-backup-${localDate()}.json`)
+      toast(`Exported ${backup.lists.length} list${backup.lists.length === 1 ? '' : 's'}`)
+    })
+    setBackupBusy(false)
+  }
+
+  async function importBackup(file: File) {
+    setBackupBusy(true)
+    await run(async () => {
+      const parsed = parseBackupFile(await file.text())
+      const plan = planImport(parsed, await loadExisting(), isOwner)
+      const { adds, skipped } = describePlan(plan)
+      const already = skipped ? ` ${skipped} ${skipped === 1 ? 'is' : 'are'} already here and will be skipped.` : ''
+      if (!adds) {
+        toast(skipped ? 'Everything in that file is already here' : 'That file has nothing to import')
+        return
+      }
+      if (!confirm(`Import ${adds} from ${file.name}?${already} Nothing already here will be changed.`)) return
+      await applyImport(plan, household!.id, member!.id)
+      toast(`Imported ${adds}`)
+    })
+    setBackupBusy(false)
   }
 
   return (
@@ -180,6 +211,33 @@ export default function SettingsPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="card stack">
+        <h2>Backup</h2>
+        <p className="muted small">
+          Export saves every past list, the current list, favorites and recipes to a file. Import adds anything from a backup that
+          isn't already here; it never changes or removes what you have.
+        </p>
+        <div className="row wrap">
+          <button onClick={exportBackup} disabled={backupBusy}>
+            Export
+          </button>
+          <button onClick={() => fileInput.current?.click()} disabled={backupBusy}>
+            Import
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void importBackup(file)
+            }}
+          />
+        </div>
       </section>
 
       <p className="muted small center">WallHub · Phase 1</p>
