@@ -206,7 +206,9 @@ export default function SettingsPage() {
                 </button>
               </div>
               {openHistory === h.id && (
-                <p className="small muted">{h.items.map((i) => (i.quantity ? `${i.name} (${i.quantity})` : i.name)).join(', ')}</p>
+                <p className="small muted">
+                  {h.items.map((i) => `${[i.name, i.size].filter(Boolean).join(' ')}${i.quantity ? ` (${i.quantity})` : ''}`).join(', ')}
+                </p>
               )}
             </li>
           ))}

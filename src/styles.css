@@ -328,3 +328,35 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
   width: 100%; justify-content: flex-start; gap: 10px; min-height: 40px; padding: 4px 2px;
   border: none; background: none; text-align: left; white-space: normal; font-weight: 400; font-size: 0.95rem;
 }
+
+/* Fry's product search */
+.frys { margin: 4px 0 8px; }
+.frys-box { display: flex; align-items: center; gap: 4px; padding-left: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.frys-box:focus-within { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.frys-box input { border: none; background: none; padding-left: 4px; outline: none; min-width: 0; }
+.frys-box input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.frys-icon { font-size: 0.95rem; filter: grayscale(1); opacity: 0.6; }
+.frys-status { padding: 8px 4px 0; }
+.frys-results {
+  list-style: none; margin: 6px 0 0; padding: 4px; display: flex; flex-direction: column; gap: 2px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  max-height: min(60vh, 460px); overflow-y: auto;
+}
+.frys-result {
+  width: 100%; justify-content: flex-start; gap: 12px; min-height: 64px; padding: 6px 8px;
+  border: none; background: none; text-align: left; white-space: normal; font-weight: 400;
+}
+.frys-result:not(:disabled):active { background: var(--accent-soft); }
+.frys-result:disabled { opacity: 1; cursor: default; }
+.frys-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; line-height: 1.25; }
+.frys-brand { font-size: 0.9rem; }
+.frys-name { font-size: 0.95rem; overflow-wrap: anywhere; }
+.frys-size { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.frys-add { flex: none; min-width: 32px; text-align: center; font-size: 1.4rem; color: var(--accent); }
+.frys-result:disabled .frys-add { font-size: 0.8rem; color: var(--muted); }
+.frys-more { width: 100%; justify-content: center; }
+.product-img { flex: none; width: 48px; height: 48px; object-fit: contain; border-radius: 8px; background: #fff; }
+.product-img.no-img { background: var(--surface-2); }
+.item-size { color: var(--muted); font-size: 0.92rem; }
+.item-img { width: 40px; height: 40px; margin: 0 2px 0 -2px; }
+.item.checked .item-img { opacity: 0.6; }

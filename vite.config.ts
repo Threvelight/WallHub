@@ -31,8 +31,14 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        // Never cache Supabase API calls; the list must always be live.
-        runtimeCaching: [],
+        // Never cache Supabase API calls; the list must always be live. Fry's
+        // search results and product pictures must never be stored either
+        // (Kroger's terms), so they are pinned to the network even if a caching
+        // service worker comes back one day.
+        runtimeCaching: [
+          { urlPattern: ({ url }) => url.pathname.includes('/functions/v1/kroger-search'), handler: 'NetworkOnly' },
+          { urlPattern: ({ url }) => /(^|\.)kroger\.com$/.test(url.hostname), handler: 'NetworkOnly' },
+        ],
       },
     }),
   ],

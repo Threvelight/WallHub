@@ -143,7 +143,15 @@ function readItems(v: unknown): HistoryItem[] {
   if (!Array.isArray(v)) return []
   return v
     .filter((i) => i && str(i.name))
-    .map((i) => ({ name: str(i.name)!, quantity: str(i.quantity), notes: str(i.notes), category: str(i.category), checked: !!i.checked }))
+    .map((i) => ({
+      name: str(i.name)!,
+      quantity: str(i.quantity),
+      notes: str(i.notes),
+      category: str(i.category),
+      checked: !!i.checked,
+      // Fry's items keep the exact product (lists from before Fry's search have none).
+      ...(str(i.kroger_product_id) ? { kroger_product_id: str(i.kroger_product_id), brand: str(i.brand), size: str(i.size) } : {}),
+    }))
 }
 
 function readList(v: unknown): BackupList | null {

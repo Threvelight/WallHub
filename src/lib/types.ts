@@ -37,6 +37,10 @@ export type GroceryItem = {
   recipe_id: string | null
   added_by: string | null
   created_at: string
+  /** Set when the item was picked from Fry's search. */
+  kroger_product_id: string | null
+  brand: string | null
+  size: string | null
 }
 
 export type Recipe = {
@@ -76,6 +80,10 @@ export type HistoryItem = {
   notes: string | null
   category: string | null
   checked: boolean
+  /** Fry's product fields; absent in snapshots taken before Fry's search. */
+  kroger_product_id?: string | null
+  brand?: string | null
+  size?: string | null
 }
 
 export type ListHistory = {
