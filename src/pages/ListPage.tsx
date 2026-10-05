@@ -38,6 +38,8 @@ import type { GroceryItem, GroceryList } from '../lib/types'
 import ItemEditor, { CategorySelect } from '../components/ItemEditor'
 import { toast } from '../components/Toast'
 import UpcomingEvents from '../components/UpcomingEvents'
+import FrysSearch from '../components/FrysSearch'
+import { brandIsInName, type KrogerProduct } from '../lib/kroger'
 
 type ListState = { list: GroceryList | null; items: GroceryItem[] }
 /** One category section of the to-buy list, as item ids in display order. */
@@ -99,6 +101,7 @@ export default function ListPage() {
 
   const toBuy = useMemo(() => data.items.filter((i) => !i.checked), [data.items])
   const itemById = useMemo(() => new Map(data.items.map((i) => [i.id, i])), [data.items])
+  const productIdsToBuy = useMemo(() => new Set(toBuy.flatMap((i) => (i.kroger_product_id ? [i.kroger_product_id] : []))), [toBuy])
 
   // Custom order for this list on this device (drag-and-drop); empty = alphabetical.
   const listId = data.list?.id
@@ -258,6 +261,37 @@ export default function ListPage() {
     })
   }
 
+  /** Adds a Fry's search result. Saves only its name, brand, size and product ID. */
+  async function addProduct(p: KrogerProduct) {
+    if (!data.list || !hid) return
+    const n = p.name.trim() || [p.brand, p.size].filter(Boolean).join(' ')
+    if (productIdsToBuy.has(p.productId)) {
+      toast(`${n} is already on the list`)
+      return
+    }
+    // Filed where this name went last time, otherwise under Other.
+    const remembered = categoryMemory.get(normalize(n))
+    const other = categories.find((c) => c.name === 'Other' && !c.is_custom)?.id
+    const categoryId = (remembered && categories.some((c) => c.id === remembered) ? remembered : other) ?? fallbackCategory
+    const row = {
+      household_id: hid,
+      list_id: data.list.id,
+      name: n,
+      quantity: null,
+      notes: null,
+      category_id: categoryId || null,
+      added_by: member?.id ?? null,
+      kroger_product_id: p.productId,
+      brand: p.brand?.trim() || null,
+      size: p.size?.trim() || null,
+    }
+    await run(async () => {
+      const inserted = must(await supabase.from('grocery_items').insert(row).select().single()) as GroceryItem
+      setData((d) => (d.items.some((i) => i.id === inserted.id) ? d : { ...d, items: [...d.items, inserted] }))
+      toast(`Added ${n}${row.size ? ` (${row.size})` : ''}`)
+    })
+  }
+
   async function toggle(item: GroceryItem) {
     const checked = !item.checked
     const patch = { checked, checked_at: checked ? new Date().toISOString() : null, checked_by: checked ? member?.id ?? null : null }
@@ -360,6 +394,8 @@ export default function ListPage() {
           ))}
         </datalist>
       </form>
+
+      <FrysSearch onAdd={addProduct} isOnList={(id) => productIdsToBuy.has(id)} />
 
       {error && <p className="error">{error}</p>}
       {loading && !data.list && <p className="muted">Loading…</p>}
@@ -541,7 +577,11 @@ function ItemRow({
       </button>
       <button className="item-body" onClick={onEdit}>
         <span className="item-name">
-          {item.name}
+          <span>
+            {!brandIsInName(item.brand, item.name) && <strong>{item.brand} </strong>}
+            {item.name}
+            {item.size && <span className="item-size"> · {item.size}</span>}
+          </span>
           {item.quantity && <span className="qty-pill">{item.quantity}</span>}
         </span>
         {(item.notes || by) && (
