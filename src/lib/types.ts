@@ -72,6 +72,10 @@ export type Favorite = {
   notes: string | null
   category: string | null
   created_at: string
+  /** Set when the favorite is a Fry's product; its picture is fetched live. */
+  kroger_product_id: string | null
+  brand: string | null
+  size: string | null
 }
 
 export type HistoryItem = {

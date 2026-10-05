@@ -25,6 +25,16 @@ export type BackupRecipe = {
   ingredients: { name: string; quantity: string | null; notes: string | null }[]
 }
 
+/** Fry's favorites also carry their product; backups from before that have none. */
+export type BackupFavorite = {
+  name: string
+  quantity: string | null
+  notes: string | null
+  kroger_product_id?: string | null
+  brand?: string | null
+  size?: string | null
+}
+
 export type Backup = {
   format: typeof BACKUP_FORMAT
   version: number
@@ -32,7 +42,7 @@ export type Backup = {
   household: { name: string }
   lists: BackupList[]
   current_list: { items: HistoryItem[] }
-  favorites: { name: string; quantity: string | null; notes: string | null }[]
+  favorites: BackupFavorite[]
   recipes: BackupRecipe[]
   categories: { name: string; is_custom: boolean }[]
 }
@@ -67,7 +77,7 @@ export async function buildBackup(householdName: string): Promise<Backup> {
   const [history, list, favorites, recipes, categories] = await Promise.all([
     supabase.from('list_history').select('name, items, item_count, created_at').order('created_at'),
     supabase.from('grocery_lists').select('id').eq('status', 'active').maybeSingle(),
-    supabase.from('favorites').select('name, quantity, notes').order('name'),
+    supabase.from('favorites').select('name, quantity, notes, kroger_product_id, brand, size').order('name'),
     supabase
       .from('recipes')
       .select('name, description, servings, instructions, recipe_ingredients(name, quantity, notes, position)')
@@ -112,7 +122,9 @@ export async function buildBackup(householdName: string): Promise<Backup> {
         checked: i.checked,
       })),
     },
-    favorites: must(favorites) as Backup['favorites'],
+    favorites: (must(favorites) as (BackupFavorite & { kroger_product_id: string | null })[]).map(
+      ({ kroger_product_id, brand, size, ...f }) => (kroger_product_id ? { ...f, kroger_product_id, brand, size } : f),
+    ),
     recipes: (must(recipes) as RecipeRow[]).map(({ recipe_ingredients, ...r }) => ({
       ...r,
       ingredients: recipe_ingredients.map(({ name, quantity, notes }) => ({ name, quantity, notes })),
@@ -190,7 +202,12 @@ export function parseBackupFile(text: string): Omit<Backup, 'current_list' | 'ex
     lists: arr(raw.lists).map(readList).filter((l): l is BackupList => !!l),
     favorites: arr(raw.favorites)
       .filter((f) => str(f.name))
-      .map((f) => ({ name: str(f.name)!, quantity: str(f.quantity), notes: str(f.notes) })),
+      .map((f) => ({
+        name: str(f.name)!,
+        quantity: str(f.quantity),
+        notes: str(f.notes),
+        ...(str(f.kroger_product_id) ? { kroger_product_id: str(f.kroger_product_id), brand: str(f.brand), size: str(f.size) } : {}),
+      })),
     recipes: arr(raw.recipes)
       .filter((r) => str(r.name))
       .map((r) => ({
