@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './lib/auth'
 import { supabaseConfigured } from './lib/supabase'
@@ -42,6 +43,39 @@ export default function App() {
   if (!session) return <AuthPage />
   if (!member || !household) return <OnboardingPage />
 
+  return <Shell />
+}
+
+/**
+ * On phones the page itself never scrolls: the content area above the tab bar does (see
+ * styles.css), so the bar can't drift or rubber-band with the page.
+ */
+function useLockedPage() {
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.add('app-shell')
+    // iOS may still pan the locked page to show a text field above the keyboard. Once the
+    // keyboard closes (focus leaves the field and doesn't move to another), put it back.
+    let timer: ReturnType<typeof setTimeout>
+    const onFocusOut = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        const el = document.activeElement
+        if (el?.matches('input, textarea, select')) return
+        if (window.scrollX || window.scrollY) window.scrollTo(0, 0)
+      }, 100)
+    }
+    document.addEventListener('focusout', onFocusOut)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('focusout', onFocusOut)
+      root.classList.remove('app-shell')
+    }
+  }, [])
+}
+
+function Shell() {
+  useLockedPage()
   return (
     <div className="shell">
       <nav className="tabs" aria-label="Main">
