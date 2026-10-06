@@ -154,6 +154,20 @@ button.wide { width: 100%; min-height: 52px; font-size: 1.05rem; }
   .content { margin-left: 200px; padding-bottom: 32px; }
 }
 
+/* Phones: the page itself doesn't scroll, so the tab bar can't drift with it (iOS
+   collapses its toolbar and rubber-bands a scrolling page, taking fixed bars along).
+   The shell is a full-height column; the content area is the only scroller and the
+   tab bar is an ordinary item at the bottom. */
+@media (max-width: 819.98px) {
+  html.app-shell, html.app-shell body { overflow: hidden; overscroll-behavior: none; }
+  .shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  .content {
+    flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+    padding-bottom: 16px;
+  }
+  .tabs { position: relative; order: 1; flex: none; }
+}
+
 .page { max-width: 760px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 20px) 16px 16px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin: 24px 0 8px; }

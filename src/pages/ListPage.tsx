@@ -145,6 +145,8 @@ export default function ListPage() {
   // the layout follows the pointer; it is committed on drop.
   const [dragLayout, setDragLayout] = useState<Group[] | null>(null)
   const dragLayoutRef = useRef<Group[] | null>(null)
+  // Set right after an item moves to another category, until the next frame.
+  const justMoved = useRef(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   function setLayout(next: Group[] | null) {
     dragLayoutRef.current = next
@@ -170,7 +172,9 @@ export default function ListPage() {
 
   function onDragOver({ active, over }: DragOverEvent) {
     const layout = dragLayoutRef.current
-    if (!layout || !over) return
+    // A move changes the categories' heights, which can put the pointer over the category
+    // it just left; moving straight back would loop forever. Wait a frame for things to settle.
+    if (!layout || !over || justMoved.current) return
     const from = findGroup(layout, active.id)
     const to = findGroup(layout, over.id)
     if (!from || !to || from === to) return
@@ -182,6 +186,8 @@ export default function ListPage() {
         g === from ? { ...g, ids: g.ids.filter((x) => x !== id) } : g === to ? { ...g, ids: [...g.ids.slice(0, at), id, ...g.ids.slice(at)] } : g,
       ),
     )
+    justMoved.current = true
+    requestAnimationFrame(() => (justMoved.current = false))
   }
 
   function onDragEnd({ active, over }: DragEndEvent) {
