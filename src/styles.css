@@ -456,3 +456,29 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
   width: min(100%, 640px); background: #111412; border-color: #1e2420; color: #8a918c; box-shadow: none; text-align: left;
 }
 .night .note-meta { color: #4f5652; }
+
+/* Photos in Settings */
+.photo-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.photo-tile { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+.photo-tile img, .photo-placeholder { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo-delete {
+  position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 99px;
+  border: none; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 1.05rem;
+}
+
+/* Photo frame: Today's idle slideshow. Covers the whole screen, tabs included. */
+.photo-frame {
+  position: fixed; inset: 0; z-index: 40; cursor: pointer; background: #0b0c0b; overflow: hidden;
+  opacity: 0; transition: opacity 1.2s ease; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.photo-frame.shown { opacity: 1; }
+.photo-layer {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  opacity: 0; transition: opacity 1.8s ease; pointer-events: none;
+}
+.photo-layer.on { opacity: 1; }
+.photo-clock {
+  position: absolute; right: calc(env(safe-area-inset-right) + 20px); bottom: calc(env(safe-area-inset-bottom) + 16px);
+  color: rgba(255, 255, 255, 0.55); font-size: 1.4rem; font-weight: 300; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+  font-variant-numeric: tabular-nums;
+}

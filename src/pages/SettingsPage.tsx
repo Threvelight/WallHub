@@ -6,6 +6,7 @@ import { getHistory, getMembers, must, rpcCount } from '../lib/data'
 import { useLiveQuery } from '../lib/live'
 import { clearOrders } from '../lib/order'
 import { errorMessage, supabase } from '../lib/supabase'
+import PhotosSection from '../components/PhotosSection'
 import { toast } from '../components/Toast'
 
 export default function SettingsPage() {
@@ -214,6 +215,8 @@ export default function SettingsPage() {
           ))}
         </ul>
       </section>
+
+      {session && <PhotosSection householdId={household.id} userId={session.user.id} isOwner={isOwner} />}
 
       <section className="card stack">
         <h2>Backup</h2>

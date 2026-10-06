@@ -6,7 +6,7 @@ Shared household grocery list and recipes. React + TypeScript PWA, Supabase (Pos
 
 **Phase 1.5:** shared family calendar.
 
-**Wall display, step 1:** the Today screen (a note board, night mode and a photo frame come later).
+**Wall display:** the Today screen, with a family note board, night mode and a photo frame.
 
 ## How it works
 
@@ -15,6 +15,8 @@ Shared household grocery list and recipes. React + TypeScript PWA, Supabase (Pos
 - **Family note board (Today).** One shared sticky note for the household (up to 500 characters), with "Last changed by NAME, time". Tap it to edit; Clear empties it. It updates live on every device, and if someone else changes it while you're typing, your draft stays and you can keep editing or reload theirs. It lives only in the `family_note` table: not in backups or browser storage.
 - **Night mode (Today only).** From 9 PM to 6 AM by the device's clock, Today dims to a near-black screen with a soft clock, the date and the note. A tap brightens it for 30 seconds (using it keeps it bright), then it dims again. It switches on and off by itself while left open. Other tabs never dim. For testing, `/today?night=1` forces it on and `/today?night=0` forces it off for that page view (`/today` is another address for the Today screen).
 - **Screen stays awake on Today.** While Today is showing (dimmed or not), the app asks the browser for a screen wake lock so the iPad doesn't auto-lock, and asks again whenever Today comes back into view. Leaving Today releases it. Needs iPadOS 16.4 or later; where it isn't supported, the screen locks as usual.
+- **Photos (Settings → Photos).** Add photos from any device (several at once). Each one is shrunk in the browser before uploading (longest side 1600 px, JPEG about 0.82 quality, turned upright using the photo's rotation), so location and camera data are not in the uploaded copy. They go to the private `household-photos` storage bucket at `<household_id>/<random id>.jpg` and show as a grid, newest first, with the count and total size (and a reminder once it passes 800 MB, since the free plan holds 1 GB). Photos that fail to upload are named, and the rest still go up. Whoever added a photo can delete it, and the household owner can delete any of them; the bucket's policies enforce that. The grid loads through signed links that expire after an hour and are refreshed before then. Photos are never kept in browser storage or any cache of the app's own. **Photos are not part of the backup file or the weekly email.**
+- **Photo frame (Today).** When nobody has touched, typed, clicked or scrolled on Today for 5 minutes, between 6 AM and 9 PM, it shows the household's photos full-screen: shuffled, 15 seconds each with a gentle crossfade, the whole photo on near-black, and a small clock in the corner. Any tap or key goes back to Today and starts the 5 minutes again. It never starts while the note editor or an event sheet is open, picks up added or deleted photos at the start of each pass through them, and keeps the screen awake. Night mode wins: at 9 PM the slideshow hands over to the dim screen, and it never starts at night. With no photos, or if they can't be loaded, nothing happens. For testing, for that page view only: `/today?idle=10` makes the idle time 10 seconds, and `/today?photos=1` starts it straight away if there are photos.
 - **The list.** There is always one active list. Tap the circle to check items off, tap the item to edit quantity or notes, tap ★ to save it as a favorite. Every device updates instantly via Supabase Realtime (and refreshes when the app returns to the foreground).
 - **Reordering.** Drag an item by its handle (⋮⋮) to reorder it within its category, or drop it in another category to move it there (that category change syncs to everyone). The order itself is saved only on that device for the current list; other devices, and every new or loaded list, show items alphabetically within each category.
 - **Finalize list** saves the list to history and starts a fresh one. Anything not checked off carries over. Only the household owner sees the button (the database enforces it too), so one person decides when the week's shopping is done.
@@ -69,10 +71,13 @@ Then: you sign up and create the household, go to Settings → **Share invite**,
 | `list_history` | Snapshot of each finished list (powers "Load last week") |
 | `events` | Calendar events: title, date, optional time / description / type, who created it |
 | `family_note` | The Today screen's shared note: one row per household (body up to 500 characters, who changed it and when) |
+| `household-photos` (storage) | Private bucket for the photo frame: `<household_id>/<id>.jpg`, up to 2 MB each, JPEG / WebP / PNG. Members can see and add photos in their own household's folder; a photo can be deleted by whoever added it or by the household owner |
 
 Every household-owned table has `household_id`, protected by RLS via `current_household_id()`. Multi-step actions run as Postgres functions so they're atomic: `create_household`, `join_household`, `regenerate_invite_code`, `ensure_active_list`, `finish_list`, `load_history`, `add_recipe_to_list`, `add_favorites_to_list`. Phase 2 tables (calendar, chores, budget, meal plans) follow the same `household_id` + policy pattern, and the `category` columns on items and favorites are ready for store aisles or Fry's product mapping.
 
 ## Backups
+
+Photos in the photo frame are **not** in either backup below; keep your own copies of them.
 
 - **Export / Import (Settings → Backup):** Export downloads `wallhub-full-backup-YYYY-MM-DD.json` with every finalized list, the current list, favorites (with their Fry's product when they have one), recipes and categories. Import reads a full backup or a weekly list file and only adds what's missing: lists already here (same name and date), favorites and recipes with the same name are skipped, and nothing existing is changed. It asks for confirmation first.
 - **Weekly email:** every Sunday at 8 PM Phoenix time (`0 3 * * 1` UTC in pg_cron), the `weekly-backup` Edge Function emails the week's finalized lists to `wallhub@threvelight.com` as `wallhub-<list-name>-<date>.json` attachments, or a short note if there were none. Email goes through [Resend](https://resend.com).
