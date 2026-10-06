@@ -24,6 +24,7 @@ import { useWakeLock } from '../lib/wakeLock'
 import { useWeather } from '../lib/weather'
 import { EventDetails, EventForm } from '../components/EventSheets'
 import NoteBoard from '../components/NoteBoard'
+import PhotoFrame from '../components/PhotoFrame'
 import { toast } from '../components/Toast'
 
 /** How far ahead the countdown strip looks for the next birthday and trip. */
@@ -107,14 +108,14 @@ function useNightMode(now: Date) {
     return () => clearTimeout(t)
   }, [brightUntil])
 
-  return { dimmed: night && !bright, brighten }
+  return { night, dimmed: night && !bright, brighten }
 }
 
 export default function TodayPage() {
   const { household, session } = useAuth()
   const hid = household?.id
   const now = useNow()
-  const { dimmed, brighten } = useNightMode(now)
+  const { night, dimmed, brighten } = useNightMode(now)
   useWakeLock()
   // The device's local calendar date; events' plain dates compare against it as text.
   const day = ymd(now)
@@ -212,6 +213,7 @@ export default function TodayPage() {
 
   return (
     <div className="page today-page">
+      <PhotoFrame householdId={hid} night={night} now={now} />
       {dimmed && (
         <div className="night" role="button" aria-label="Brighten the screen" onClick={brighten}>
           {clock}
