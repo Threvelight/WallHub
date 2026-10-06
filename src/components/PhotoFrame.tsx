@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { listPhotos, shuffle, signPhotos, SIGNED_SECONDS, type Photo } from '../lib/photos'
+import { listPhotos, shuffle, signPhotos, type Photo } from '../lib/photos'
 
 /** The slideshow starts after this long with no taps, keys, scrolling or typing. */
 const IDLE_MS = 5 * 60_000
 /** How long each photo stays up. */
 const SLIDE_MS = 15_000
-/** Re-sign a little before the URLs run out. */
-const RESIGN_MS = (SIGNED_SECONDS - 10 * 60) * 1000
+/**
+ * The slideshow's links last a day and are reused from pass to pass, so the browser's
+ * own HTTP cache can serve a photo it has already shown instead of downloading it again
+ * (which matters for the free plan's monthly download allowance).
+ */
+const LINK_SECONDS = 24 * 60 * 60
+/** Re-sign a little before a link runs out. */
+const RESIGN_MS = (LINK_SECONDS - 10 * 60) * 1000
 const ACTIVITY = ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart', 'input'] as const
 
 /** True while something on the page wants the person's attention: a sheet, the note editor, a text field. */
@@ -136,6 +142,20 @@ function Slideshow({
       setTop(f)
     }
 
+    const links = new Map<string, { url: string; at: number }>()
+    const fresh = (path: string) => {
+      const l = links.get(path)
+      return l && Date.now() - l.at < RESIGN_MS ? l.url : undefined
+    }
+    async function sign(paths: string[]) {
+      try {
+        const at = Date.now()
+        for (const [path, url] of await signPhotos(paths, LINK_SECONDS)) links.set(path, { url, at })
+      } catch {
+        /* those photos are skipped */
+      }
+    }
+
     async function run() {
       let list = first
       let last: string | undefined
@@ -153,24 +173,15 @@ function Slideshow({
         // Don't show the same photo twice in a row across passes.
         if (order.length > 1 && order[0] === last) order.push(order.shift()!)
 
-        let urls = new Map<string, string>()
-        let signedAt = 0
-        const urlFor = async (path: string, fresh = false) => {
-          if (fresh || Date.now() - signedAt > RESIGN_MS) {
-            try {
-              urls = await signPhotos(order)
-              signedAt = Date.now()
-            } catch {
-              /* that photo is skipped */
-            }
-          }
-          return urls.get(path)
-        }
-        // Download and decode a photo; an expired link gets signed again once.
+        // Sign, in one call, every photo in this pass without a usable link.
+        const missing = order.filter((p) => !fresh(p))
+        if (missing.length) await sign(missing)
+        // Download and decode a photo; a link that fails is signed again once.
         const load = async (path: string) => {
-          let url = await urlFor(path)
+          let url = fresh(path)
           if (url && (await preload(url))) return url
-          url = await urlFor(path, true)
+          await sign([path])
+          url = links.get(path)?.url
           return url && (await preload(url)) ? url : undefined
         }
 

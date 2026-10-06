@@ -12,7 +12,7 @@ const MAX_SIDE = 1600
 const QUALITY = 0.82
 /** The bucket refuses anything larger. */
 const MAX_BYTES = 2 * 1024 * 1024
-/** Signed URLs last this long. */
+/** Signed URLs for the Settings grid last this long. */
 export const SIGNED_SECONDS = 60 * 60
 
 export type Photo = {
@@ -42,11 +42,11 @@ export async function listPhotos(householdId: string): Promise<Photo[]> {
   return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
-/** Signed URLs for these paths, valid for an hour. Paths that fail are left out. */
-export async function signPhotos(paths: string[]): Promise<Map<string, string>> {
+/** Signed URLs for these paths (valid for an hour unless told otherwise). Paths that fail are left out. */
+export async function signPhotos(paths: string[], seconds = SIGNED_SECONDS): Promise<Map<string, string>> {
   const urls = new Map<string, string>()
   if (!paths.length) return urls
-  const { data, error } = await bucket().createSignedUrls(paths, SIGNED_SECONDS)
+  const { data, error } = await bucket().createSignedUrls(paths, seconds)
   if (error) throw new Error(error.message)
   for (const d of data ?? []) if (d.path && d.signedUrl) urls.set(d.path, d.signedUrl)
   return urls
@@ -104,7 +104,8 @@ export async function uploadPhoto(householdId: string, userId: string, blob: Blo
   const path = `${householdId}/${crypto.randomUUID()}.jpg`
   const { error } = await bucket().upload(path, blob, {
     contentType: 'image/jpeg',
-    cacheControl: '3600',
+    // Files never change (each upload gets a new name), so browsers may keep them a week.
+    cacheControl: '604800',
     upsert: false,
     metadata: { uploader: userId },
   })
